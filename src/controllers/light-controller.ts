@@ -211,26 +211,30 @@ export class LightController extends Controller {
     }
   }
 
-  get string() {
+  formatValue(value: number): string {
     if (this.stateObj && this.stateObj.state === "off")
       return this._hass.localize(
         "component.light.entity_component._.state.off"
       );
     switch (this.attribute) {
       case "brightness":
-        return `${this.value}`;
+        return `${value}`;
       case "color_temp":
-        return `${this.value} K`;
+        return `${value} K`;
       case "brightness_pct":
       case "saturation":
-        return `${this.value} %`;
+        return `${value} %`;
       case "hue":
-        return `${this.value} °`;
+        return `${value} °`;
       case "effect":
         return this.stateObj ? this.stateObj.attributes.effect : "";
       default:
-        return this.value;
+        return `${value}`;
     }
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get hasSlider() {

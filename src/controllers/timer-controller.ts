@@ -47,12 +47,12 @@ export class TimerController extends Controller {
     }
   }
 
-  get string() {
+  formatValue(value: number): string {
     if (this.stateObj.state === "active") {
       const leftpad = (num) => (num < 10 ? `0${num}` : `${num}`);
-      const h = Math.floor(this.value / 3600);
-      const m = Math.floor((this.value % 3600) / 60);
-      const s = Math.floor(this.value % 60);
+      const h = Math.floor(value / 3600);
+      const m = Math.floor((value % 3600) / 60);
+      const s = Math.floor(value % 60);
       if (h > 0) {
         return `${h}:${leftpad(m)}:${leftpad(s)}`;
       }
@@ -62,6 +62,10 @@ export class TimerController extends Controller {
       return `${s}`;
     }
     return this._hass.localize("component.timer.entity_component._.state.idle");
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get isOff() {

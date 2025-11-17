@@ -25,6 +25,7 @@ cards:
           - full_row + hide_when_off
           - full_row + toggle
           - full_row + hide_state
+          - show_step_buttons
 
           ```
           - &default
@@ -61,6 +62,9 @@ cards:
           - <<: *default
             full_row: true
             show_icon: true
+          - <<: *default
+            name: show_step_buttons
+            show_step_buttons: true
           - <<: *default
             name: rtl
             dir: rtl
@@ -105,6 +109,9 @@ cards:
           - <<: *default
             full_row: true
             show_icon: true
+          - <<: *default
+            name: show_step_buttons
+            show_step_buttons: true
           - <<: *default
             name: rtl
             dir: rtl

@@ -1,12 +1,15 @@
 import { LitElement, html, css } from "lit";
 import { property } from "lit/decorators.js";
 import { query } from "lit/decorators/query.js";
-
+import { state } from "lit/decorators/state.js";
+import { debounce, conditionalClamp } from "./utils";
 import { getController } from "./controllers/get-controller";
 import { Controller, ControllerConfig } from "./controllers/controller";
 import pjson from "../package.json";
 
 import "./editor.ts";
+
+const DEFAULT_DEBOUNCE_TIME = 1000;
 
 class SliderEntityRow extends LitElement {
   _config: ControllerConfig;
@@ -14,7 +17,37 @@ class SliderEntityRow extends LitElement {
 
   @property() hass: any;
   @property() hide_state: boolean;
+  @property() show_step_buttons: boolean;
+  @state() _isDragging: boolean = false;
+  @state() _value: number;
+  @state() _isPending: boolean = false;
+  _pendingTimer?: number;
   @query("ha-slider") _slider?;
+
+  private _incrementValue(e: MouseEvent) {
+    e.stopPropagation();
+    this._processNewValue(this._value + this.ctrl.step);
+  }
+
+  private _decrementValue(e: MouseEvent) {
+    e.stopPropagation();
+    this._processNewValue(this._value - this.ctrl.step);
+  }
+
+  private _processNewValue(value) {
+    const newValue = conditionalClamp(value, this.ctrl.min, this.ctrl.max);
+    if (this.ctrl.value !== newValue) {
+      this._value = newValue;
+      this._isPending = true;
+      this.debounceUpdateValue(newValue);
+    }
+  }
+
+  private updateValue = (value: number) => {
+    this.ctrl.value = value;
+  };
+
+  private debounceUpdateValue = this.updateValue;
 
   setConfig(config: ControllerConfig) {
     if (config.attribute === "color_temp_mired")
@@ -43,10 +76,30 @@ class SliderEntityRow extends LitElement {
   }
 
   async firstUpdated() {
+    this.debounceUpdateValue = debounce(this.updateValue, DEFAULT_DEBOUNCE_TIME);
     await this.resized();
   }
 
   async updated() {
+    // Sync _value from controller when hass/state updates, but don't override while dragging
+    if (this.ctrl && this.ctrl.stateObj) {
+      const newVal = this.ctrl.value;
+      if (this._value === undefined) {
+        this._value = newVal;
+      } else if (this._isPending) {
+        // We recently set the value locally; wait until HA reports the new value
+        if (newVal === this._value) {
+          this._isPending = false;
+          if (this._pendingTimer) {
+            window.clearTimeout(this._pendingTimer);
+            this._pendingTimer = undefined;
+          }
+        }
+      } else if (!this._isDragging && newVal !== this._value) {
+        this._value = newVal;
+      }
+    }
+
     if (!this._slider) return;
     await this._slider.updateComplete;
     if (this._slider.shadowRoot.querySelector("style.slider-entity-row"))
@@ -70,17 +123,17 @@ class SliderEntityRow extends LitElement {
       return html`
         <hui-warning>
           ${this.hass.localize(
-            "ui.panel.lovelace.warning.entity_not_found",
-            "entity",
-            this._config.entity
-          )}
+        "ui.panel.lovelace.warning.entity_not_found",
+        "entity",
+        this._config.entity
+      )}
         </hui-warning>
       `;
 
     const dir =
       c.dir ??
-      this.hass.translationMetadata.translations[this.hass.language || "en"]
-        .isRTL
+        this.hass.translationMetadata.translations[this.hass.language || "en"]
+          .isRTL
         ? "rtl"
         : "ltr";
 
@@ -92,19 +145,19 @@ class SliderEntityRow extends LitElement {
     const showValue = showToggle
       ? false
       : this._config.hide_state === false
-      ? true
-      : this._config.hide_state || this.hide_state
-      ? false
-      : c.isOff && this._config.hide_when_off
-      ? false
-      : true;
+        ? true
+        : this._config.hide_state || this.hide_state
+          ? false
+          : c.isOff && this._config.hide_when_off
+            ? false
+            : true;
 
     const content = html`
       <div class="wrapper" @click=${(ev) => ev.stopPropagation()}>
         ${showSlider
-          ? html`
+        ? html`
               ${this._config.colorize && c.background
-                ? html`
+            ? html`
                     <style>
                       ha-slider::part(track) {
                         background: ${c.background};
@@ -120,34 +173,76 @@ class SliderEntityRow extends LitElement {
                       }
                     </style>
                   `
-                : ""}
+            : ""}
               <ha-slider
                 .min=${c.min}
                 .max=${c.max}
                 .step=${c.step}
-                .value=${c.value}
+                .value=${this._value}
                 .dir=${dir}
+                .withTooltip=${false}
                 labeled
                 pin
-                @change=${(ev) =>
-                  (c.value = (
-                    this.shadowRoot.querySelector("ha-slider") as any
-                  ).value)}
+                @input=${(ev) => {
+            this._isDragging = true;
+            this._value = (
+              this.shadowRoot.querySelector("ha-slider") as any
+            ).value;
+          }}
+                @change=${(ev) => {
+            this._isDragging = false;
+            const v = (
+              this.shadowRoot.querySelector("ha-slider") as any
+            ).value;
+            // Mark that we set the value locally and are waiting for HA to update
+            this._isPending = true;
+            if (this._pendingTimer) window.clearTimeout(this._pendingTimer);
+            this._pendingTimer = window.setTimeout(() => {
+              this._isPending = false;
+              this._pendingTimer = undefined;
+            }, 10000);
+            c.value = v;
+          }}
                 class=${this._config.full_row || this._config.grow
-                  ? "full"
-                  : ""}
+            ? "full test"
+            : ""}
                 ignore-bar-touch
               ></ha-slider>
             `
-          : ""}
+        : ""}
         ${showToggle ? c.renderToggle(this.hass) : ""}
         ${showValue
-          ? html`<span class="state">
-              ${c.stateObj.state === "unavailable"
-                ? this.hass.localize("state.default.unavailable")
-                : c.string}
-            </span>`
-          : ""}
+        ? html`
+                    <div class="container">
+                        ${this._config.show_step_buttons
+            ? html`
+                                    <button
+                                        class="button minus"
+                                        @click=${this._decrementValue}
+                                        .disabled=${this._value <= c.min}
+                                        >
+                                        <ha-icon icon="mdi:minus"></ha-icon>
+                                    </button>
+                                  `
+            : ""}
+                        <span class="value">
+                            ${c.stateObj.state === "unavailable"
+            ? this.hass.localize("state.default.unavailable")
+            : c.formatValue(this._value)}
+                        </span>
+                        ${this._config.show_step_buttons
+            ? html`
+                                    <button
+                                        class="button plus"
+                                        @click=${this._incrementValue}
+                                        .disabled=${this._value >= c.max}
+                                        >
+                                        <ha-icon icon="mdi:plus"></ha-icon>
+                                    </button>
+                                  `
+            : ""}
+                    </div>`
+        : ""}
       </div>
     `;
 
@@ -186,12 +281,9 @@ class SliderEntityRow extends LitElement {
         display: flex;
         align-items: center;
         justify-content: flex-end;
+        gap: 20px;
         flex: 7;
         height: 40px;
-      }
-      .state {
-        min-width: 45px;
-        text-align: end;
       }
       ha-entity-toggle {
         min-width: auto;
@@ -204,6 +296,62 @@ class SliderEntityRow extends LitElement {
       }
       ha-slider:not(.full) {
         max-width: 200px;
+      }
+      .container {
+        box-sizing: border-box;
+        flex: 0 0 auto;
+        height: 100%;
+        padding: 6px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        border: none;
+        background-color: rgba(var(--rgb-primary-text-color), 0.05);
+        transition: background-color 280ms ease-in-out;
+        height: 36px;
+        overflow: hidden;
+        font-size: var(--ha-font-size-m);
+      }
+      .button {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        border-radius: 12px;
+        line-height: 0;
+        height: 100%;
+      }
+      .minus {
+        padding-right: 0;
+      }
+      .plus {
+        padding-left: 0;
+      }
+      .button:disabled {
+        cursor: not-allowed;
+      }
+      .button:disabled ha-icon {
+        color: var(--default-disabled);
+      }
+      .button ha-icon {
+        font-size: 36px;
+        --mdc-icon-size: 0.5em;
+        color: var(--primary-text-color);
+        pointer-events: none;
+      }
+      .value {
+        text-align: center;
+        flex-grow: 1;
+        flex-shrink: 0;
+        flex-basis: 20px;
+        font-weight: 500;
+        color: var(--primary-text-color);
       }
     `;
   }

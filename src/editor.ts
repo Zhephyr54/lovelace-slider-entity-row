@@ -68,6 +68,7 @@ class SliderEntityRowEditor extends LitElement {
           { name: "hide_when_off", selector: { boolean: {} } },
           { name: "full_row", selector: { boolean: {} } },
           { name: "show_icon", selector: { boolean: {} } },
+          { name: "show_step_buttons", selector: { boolean: {} } },
         ],
       },
       attributes.length

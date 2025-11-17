@@ -15,6 +15,10 @@ export class InputSelectController extends Controller {
       });
   }
 
+  formatValue(value: number): string {
+    return this.stateObj.attributes.options[Math.round(value)] || "";
+  }
+
   get string() {
     return this.stateObj.state;
   }

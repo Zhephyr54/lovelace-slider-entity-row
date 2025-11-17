@@ -12,8 +12,12 @@ export class ClimateController extends Controller {
     });
   }
 
+  formatValue(value: number): string {
+    return `${value} ${this._hass.config.unit_system.temperature}`;
+  }
+
   get string() {
-    return `${this.value} ${this._hass.config.unit_system.temperature}`;
+    return this.formatValue(this.value);
   }
 
   get isOff() {

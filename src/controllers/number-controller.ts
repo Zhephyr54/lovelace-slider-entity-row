@@ -12,10 +12,14 @@ export class NumberController extends Controller {
     });
   }
 
-  get string() {
-    return `${parseFloat(this.stateObj.state)} ${
+  formatValue(value: number): string {
+    return `${value} ${
       this.stateObj.attributes.unit_of_measurement || ""
     }`.trim();
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get isOff() {

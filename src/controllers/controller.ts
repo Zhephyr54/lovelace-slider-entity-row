@@ -14,6 +14,7 @@ export interface ControllerConfig {
   dir?: string;
   colorize?: boolean;
   show_icon?: boolean;
+  show_step_buttons?: boolean;
 }
 
 export abstract class Controller {
@@ -45,9 +46,14 @@ export abstract class Controller {
     if (value !== this.value) this._value = value;
   }
 
-  get string(): string {
-    return `${this.value}`;
+  formatValue(value: number): string {
+    return `${value}`;
   }
+
+  get string(): string {
+    return this.formatValue(this.value);
+  }
+
   get hidden(): boolean {
     return false;
   }

@@ -42,7 +42,7 @@ export class CoverController extends Controller {
     }
   }
 
-  get string() {
+  formatValue(value: number): string {
     if (!this.hasSlider) return "";
     switch (this.attribute) {
       case "position":
@@ -50,14 +50,19 @@ export class CoverController extends Controller {
           return this._hass.localize(
             "component.cover.entity_component._.state.closed"
           );
-        if (this.value === 100)
+        if (value === 100)
           return this._hass.localize(
             "component.cover.entity_component._.state.open"
           );
-        return `${this.value} %`;
+        return `${value} %`;
       case "tilt":
-        return `${this.value} %`;
+        return `${value} %`;
     }
+    return "";
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get hasToggle() {

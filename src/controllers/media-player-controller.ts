@@ -28,13 +28,17 @@ export class MediaPlayerController extends Controller {
     return this.stateObj.state === "off";
   }
 
-  get string() {
+  formatValue(value: number): string {
     if (this.stateObj.attributes.is_volume_muted) return "-";
     return !!this.stateObj.attributes.volume_level
-      ? `${this.value} %`
+      ? `${value} %`
       : this._hass.localize(
           "component.media_player.entity_component._.state.off"
         );
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get hasToggle() {

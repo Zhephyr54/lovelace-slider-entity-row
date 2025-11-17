@@ -23,12 +23,16 @@ export class FanController extends Controller {
     }
   }
 
-  get string() {
+  formatValue(value: number): string {
     if (this.stateObj.state === "off")
       return this._hass.localize(
         "component.light.entity_component._.state.off"
       );
-    return `${this.stateObj.attributes.percentage} %`;
+    return `${value} %`;
+  }
+
+  get string() {
+    return this.formatValue(this.value);
   }
 
   get hasSlider() {

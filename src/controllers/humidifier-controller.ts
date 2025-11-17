@@ -12,8 +12,12 @@ export class HumidifierController extends Controller {
     });
   }
 
+  formatValue(value: number): string {
+    return `${value} %`;
+  }
+
   get string() {
-    return `${this.value} %`;
+    return this.formatValue(this.value);
   }
 
   get isOff() {
